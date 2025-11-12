@@ -3,7 +3,7 @@
   "name": "EZ Replace",
   "version": "1.0.0",
   "minAppVersion": "0.15.0",
-  "description": "Quickly replace selected text with predefined word pairs using a customizable hotkey",
+  "description": "Quickly replace selected text with predefined word pairs using a customizable hotkey.",
   "author": "ar0nica",
   "authorUrl": "",
   "isDesktopOnly": false
