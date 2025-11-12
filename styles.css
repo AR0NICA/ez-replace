@@ -1,0 +1,87 @@
+/* EZ Replace Plugin Styles */
+
+.ez-replace-settings-container {
+    padding: 20px;
+}
+
+/* Hotkey configuration section */
+.ez-replace-hotkey-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--interactive-accent);
+    border-radius: 5px;
+}
+
+.ez-replace-hotkey-section .setting-item-description {
+    color: var(--text-normal);
+    font-weight: 500;
+}
+
+/* Replacement pairs container */
+.ez-replace-pairs-container {
+    margin-top: 20px;
+}
+
+/* Individual pair setting */
+.ez-replace-pair-setting {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: var(--background-secondary);
+}
+
+/* Advanced options container */
+.ez-replace-advanced-options {
+    margin-top: 10px;
+    padding: 15px;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 3px;
+    border-left: 3px solid var(--interactive-accent);
+}
+
+.ez-replace-advanced-options .setting-item {
+    border-top: none;
+    padding-top: 10px;
+}
+
+/* Arrow indicator between source and target */
+.ez-replace-arrow {
+    color: var(--text-muted);
+    font-weight: bold;
+    margin: 0 5px;
+}
+
+/* Empty message */
+.ez-replace-empty-message {
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
+
+/* Input fields spacing */
+.ez-replace-pair-setting input[type="text"] {
+    min-width: 150px;
+}
+
+/* Button spacing */
+.ez-replace-button {
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+.ez-replace-add-button {
+    margin-top: 10px;
+}
+
+/* Move buttons styling */
+.ez-replace-pair-setting button[aria-label*="Move"] {
+    opacity: 0.6;
+}
+
+.ez-replace-pair-setting button[aria-label*="Move"]:hover {
+    opacity: 1;
+}

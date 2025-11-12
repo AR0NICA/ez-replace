@@ -1,0 +1,428 @@
+import { App, PluginSettingTab, Setting } from 'obsidian';
+import EZReplacePlugin from './main';
+import { ReplacementPair } from './types';
+
+/**
+ * Settings tab for EZ Replace plugin
+ */
+export class EZReplaceSettingTab extends PluginSettingTab {
+	plugin: EZReplacePlugin;
+
+	constructor(app: App, plugin: EZReplacePlugin) {
+		super(app, plugin);
+		this.plugin = plugin;
+	}
+
+	display(): void {
+		const { containerEl } = this;
+
+		containerEl.empty();
+
+		// Header
+		containerEl.createEl('h2', { text: 'EZ Replace Settings' });
+
+		// Description
+		containerEl.createEl('p', {
+			text: 'Manage your text replacement pairs. Select text and use the hotkey to replace.'
+		});
+
+		// Hotkey configuration section
+		this.displayHotkeySection(containerEl);
+
+		// Add new pair button
+		new Setting(containerEl)
+			.setName('Add new replacement pair')
+			.setDesc('Create a new text replacement pair')
+			.addButton(button => button
+				.setButtonText('Add pair')
+				.setCta()
+				.onClick(() => {
+					this.addNewPair();
+				}));
+
+		// Import/Export section
+		new Setting(containerEl)
+			.setName('Backup & Restore')
+			.setDesc('Export your replacement pairs to JSON or import from a backup file')
+			.addButton(button => button
+				.setButtonText('Export to JSON')
+				.setTooltip('Download all replacement pairs as JSON file')
+				.onClick(() => {
+					this.exportSettings();
+				}))
+			.addButton(button => button
+				.setButtonText('Import from JSON')
+				.setTooltip('Load replacement pairs from JSON file')
+				.onClick(() => {
+					this.importSettings();
+				}));
+
+		// Display existing pairs
+		this.displayReplacementPairs(containerEl);
+	}
+
+	/**
+	 * Display all replacement pairs
+	 */
+	displayReplacementPairs(containerEl: HTMLElement): void {
+		const pairsContainer = containerEl.createDiv('ez-replace-pairs-container');
+
+		if (this.plugin.settings.replacementPairs.length === 0) {
+			pairsContainer.createEl('p', {
+				text: 'No replacement pairs yet. Add one to get started!',
+				cls: 'ez-replace-empty-message'
+			});
+			return;
+		}
+
+		// Display each pair
+		this.plugin.settings.replacementPairs.forEach((pair, index) => {
+			this.displayReplacementPair(pairsContainer, pair, index);
+		});
+	}
+
+	/**
+	 * Display a single replacement pair
+	 */
+	displayReplacementPair(container: HTMLElement, pair: ReplacementPair, index: number): void {
+		const pairSetting = new Setting(container)
+			.setClass('ez-replace-pair-setting');
+
+		// Move up button
+		pairSetting.addButton(button => button
+			.setIcon('up-chevron-glyph')
+			.setTooltip('Move up')
+			.onClick(async () => {
+				if (index > 0) {
+					// Swap with previous item
+					const temp = this.plugin.settings.replacementPairs[index - 1];
+					this.plugin.settings.replacementPairs[index - 1] = this.plugin.settings.replacementPairs[index];
+					this.plugin.settings.replacementPairs[index] = temp;
+					await this.plugin.saveSettings();
+					this.display();
+				}
+			}));
+
+		// Move down button
+		pairSetting.addButton(button => button
+			.setIcon('down-chevron-glyph')
+			.setTooltip('Move down')
+			.onClick(async () => {
+				if (index < this.plugin.settings.replacementPairs.length - 1) {
+					// Swap with next item
+					const temp = this.plugin.settings.replacementPairs[index + 1];
+					this.plugin.settings.replacementPairs[index + 1] = this.plugin.settings.replacementPairs[index];
+					this.plugin.settings.replacementPairs[index] = temp;
+					await this.plugin.saveSettings();
+					this.display();
+				}
+			}));
+
+		// Source text input
+		pairSetting.addText(text => text
+			.setPlaceholder('Source text (e.g., ->)')
+			.setValue(pair.source)
+			.onChange(async (value) => {
+				pair.source = value;
+				await this.plugin.saveSettings();
+			}));
+
+		// Arrow indicator
+		pairSetting.settingEl.createSpan({ text: ' → ', cls: 'ez-replace-arrow' });
+
+		// Target text input
+		pairSetting.addText(text => text
+			.setPlaceholder('Target text (e.g., →)')
+			.setValue(pair.target)
+			.onChange(async (value) => {
+				pair.target = value;
+				await this.plugin.saveSettings();
+			}));
+
+		// Enable/disable toggle
+		pairSetting.addToggle(toggle => toggle
+			.setValue(pair.enabled)
+			.setTooltip(pair.enabled ? 'Enabled' : 'Disabled')
+			.onChange(async (value) => {
+				pair.enabled = value;
+				await this.plugin.saveSettings();
+			}));
+
+		// Advanced options button
+		pairSetting.addButton(button => button
+			.setIcon('settings')
+			.setTooltip('Advanced options')
+			.onClick(() => {
+				this.toggleAdvancedOptions(container, pair, index);
+			}));
+
+		// Delete button
+		pairSetting.addButton(button => button
+			.setButtonText('Delete')
+			.setWarning()
+			.onClick(async () => {
+				this.plugin.settings.replacementPairs.splice(index, 1);
+				await this.plugin.saveSettings();
+				this.display(); // Refresh the display
+			}));
+	}
+
+	/**
+	 * Toggle advanced options for a replacement pair
+	 */
+	toggleAdvancedOptions(container: HTMLElement, pair: ReplacementPair, index: number): void {
+		const advancedId = `advanced-${index}`;
+		const existingAdvanced = container.querySelector(`#${advancedId}`);
+
+		// If already open, close it
+		if (existingAdvanced) {
+			existingAdvanced.remove();
+			return;
+		}
+
+		// Create advanced options container
+		const advancedContainer = container.createDiv({
+			cls: 'ez-replace-advanced-options',
+			attr: { id: advancedId }
+		});
+
+		// Description field
+		new Setting(advancedContainer)
+			.setName('Description')
+			.setDesc('Optional description for this replacement pair')
+			.addText(text => text
+				.setPlaceholder('e.g., Arrow symbol')
+				.setValue(pair.description || '')
+				.onChange(async (value) => {
+					pair.description = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Case sensitive option
+		new Setting(advancedContainer)
+			.setName('Case sensitive')
+			.setDesc('Match source text with exact case (uppercase/lowercase)')
+			.addToggle(toggle => toggle
+				.setValue(pair.caseSensitive !== undefined ? pair.caseSensitive : true)
+				.onChange(async (value) => {
+					pair.caseSensitive = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Whole word option
+		new Setting(advancedContainer)
+			.setName('Whole word match')
+			.setDesc('Only match if source text is a complete word (not part of another word)')
+			.addToggle(toggle => toggle
+				.setValue(pair.wholeWord !== undefined ? pair.wholeWord : false)
+				.onChange(async (value) => {
+					pair.wholeWord = value;
+					await this.plugin.saveSettings();
+				}));
+	}
+
+	/**
+	 * Add a new replacement pair
+	 */
+	addNewPair(): void {
+		const newPair: ReplacementPair = {
+			id: `pair-${Date.now()}`,
+			source: '',
+			target: '',
+			enabled: true,
+			description: '',
+			caseSensitive: true,
+			wholeWord: false
+		};
+
+		this.plugin.settings.replacementPairs.push(newPair);
+		this.plugin.saveSettings();
+		this.display(); // Refresh the display
+	}
+
+	/**
+	 * Export replacement pairs to JSON file
+	 */
+	exportSettings(): void {
+		const dataStr = JSON.stringify(this.plugin.settings.replacementPairs, null, 2);
+		const dataBlob = new Blob([dataStr], { type: 'application/json' });
+		
+		// Create download link
+		const url = URL.createObjectURL(dataBlob);
+		const link = document.createElement('a');
+		link.href = url;
+		link.download = `ez-replace-backup-${this.getDateString()}.json`;
+		
+		// Trigger download
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		
+		// Clean up
+		URL.revokeObjectURL(url);
+		
+		console.log('Settings exported successfully');
+	}
+
+	/**
+	 * Import replacement pairs from JSON file
+	 */
+	importSettings(): void {
+		// Create file input element
+		const input = document.createElement('input');
+		input.type = 'file';
+		input.accept = 'application/json,.json';
+		
+		input.onchange = async (e: Event) => {
+			const target = e.target as HTMLInputElement;
+			const file = target.files?.[0];
+			
+			if (!file) {
+				return;
+			}
+			
+			try {
+				const text = await file.text();
+				const importedPairs = JSON.parse(text);
+				
+				// Validate imported data
+				if (!Array.isArray(importedPairs)) {
+					throw new Error('Invalid format: Expected an array of replacement pairs');
+				}
+				
+				// Validate each pair has required fields
+				for (const pair of importedPairs) {
+					if (!pair.source || !pair.target) {
+						throw new Error('Invalid format: Each pair must have source and target fields');
+					}
+				}
+				
+				// Show import options dialog
+				this.showImportDialog(importedPairs);
+				
+			} catch (error) {
+				console.error('Import failed:', error);
+				alert(`✗ Import failed: ${error.message}`);
+			}
+		};
+		
+		// Trigger file picker
+		input.click();
+	}
+
+	/**
+	 * Show dialog with import options
+	 */
+	async showImportDialog(importedPairs: ReplacementPair[]): Promise<void> {
+		const currentCount = this.plugin.settings.replacementPairs.length;
+		const importCount = importedPairs.length;
+		
+		// Create a custom modal-like dialog
+		const message = `Found ${importCount} replacement pairs in the file.\nYou currently have ${currentCount} pairs.\n\nHow would you like to import?`;
+		
+		// Use native confirm dialogs for simplicity
+		const shouldReplace = confirm(
+			`${message}\n\n` +
+			`Click OK to REPLACE all current pairs (${currentCount} → ${importCount})\n` +
+			`Click Cancel to see merge option`
+		);
+		
+		if (shouldReplace) {
+			// Replace mode
+			this.plugin.settings.replacementPairs = importedPairs;
+			await this.plugin.saveSettings();
+			this.display();
+			alert(`✓ Replaced all pairs. Now you have ${importCount} replacement pairs.`);
+		} else {
+			// Ask for merge
+			const shouldMerge = confirm(
+				`Would you like to MERGE instead?\n\n` +
+				`Click OK to add imported pairs to existing ones (${currentCount} + ${importCount} = ${currentCount + importCount})\n` +
+				`Click Cancel to abort import`
+			);
+			
+			if (shouldMerge) {
+				// Merge mode - add imported pairs to existing ones
+				this.plugin.settings.replacementPairs.push(...importedPairs);
+				await this.plugin.saveSettings();
+				this.display();
+				alert(`✓ Merged successfully. Now you have ${this.plugin.settings.replacementPairs.length} replacement pairs.`);
+			}
+		}
+	}
+
+	/**
+	 * Get formatted date string for filename
+	 */
+	getDateString(): string {
+		const now = new Date();
+		const year = now.getFullYear();
+		const month = String(now.getMonth() + 1).padStart(2, '0');
+		const day = String(now.getDate()).padStart(2, '0');
+		const hours = String(now.getHours()).padStart(2, '0');
+		const minutes = String(now.getMinutes()).padStart(2, '0');
+		
+		return `${year}${month}${day}-${hours}${minutes}`;
+	}
+
+	/**
+	 * Display hotkey configuration section
+	 */
+	displayHotkeySection(containerEl: HTMLElement): void {
+		const hotkeySection = containerEl.createDiv('ez-replace-hotkey-section');
+		
+		// Get current hotkeys for this plugin's command
+		const hotkeys = (this.app as any).hotkeyManager.getHotkeys('ez-replace:replace-selected-text');
+		
+		new Setting(hotkeySection)
+			.setName('Hotkey Configuration')
+			.setDesc(this.getHotkeyDescription(hotkeys))
+			.addButton(button => button
+				.setButtonText('Configure Hotkey')
+				.setTooltip('Open Obsidian hotkey settings')
+				.onClick(() => {
+					this.openHotkeySettings();
+				}));
+	}
+
+	/**
+	 * Get description text for current hotkeys
+	 */
+	getHotkeyDescription(hotkeys: any[]): string {
+		if (!hotkeys || hotkeys.length === 0) {
+			return 'No hotkey configured. Click below to set one up.';
+		}
+		
+		const hotkeyStrings = hotkeys.map((hotkey: any) => {
+			const modifiers = [];
+			if (hotkey.modifiers) {
+				modifiers.push(...hotkey.modifiers);
+			}
+			modifiers.push(hotkey.key);
+			return modifiers.join('+');
+		});
+		
+		return `Current hotkey: ${hotkeyStrings.join(' or ')}`;
+	}
+
+	/**
+	 * Open Obsidian's hotkey settings
+	 */
+	openHotkeySettings(): void {
+		// Close current settings
+		(this.app as any).setting.close();
+		
+		// Open settings and navigate to hotkeys
+		(this.app as any).setting.open();
+		(this.app as any).setting.openTabById('hotkeys');
+		
+		// Try to filter/search for our plugin
+		setTimeout(() => {
+			const searchInput = document.querySelector('.setting-search-input') as HTMLInputElement;
+			if (searchInput) {
+				searchInput.value = 'EZ Replace';
+				searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+			}
+		}, 100);
+	}
+}

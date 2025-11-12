@@ -1,0 +1,92 @@
+[
+  {
+    "id": "example-1",
+    "source": "->",
+    "target": "→",
+    "enabled": true,
+    "description": "Right arrow",
+    "caseSensitive": true,
+    "wholeWord": false
+  },
+  {
+    "id": "example-2",
+    "source": "<-",
+    "target": "←",
+    "enabled": true,
+    "description": "Left arrow",
+    "caseSensitive": true,
+    "wholeWord": false
+  },
+  {
+    "id": "example-3",
+    "source": "=>",
+    "target": "⇒",
+    "enabled": true,
+    "description": "Double right arrow",
+    "caseSensitive": true,
+    "wholeWord": false
+  },
+  {
+    "id": "example-4",
+    "source": "!=",
+    "target": "≠",
+    "enabled": true,
+    "description": "Not equal",
+    "caseSensitive": true,
+    "wholeWord": false
+  },
+  {
+    "id": "example-5",
+    "source": ">=",
+    "target": "≥",
+    "enabled": true,
+    "description": "Greater than or equal",
+    "caseSensitive": true,
+    "wholeWord": false
+  },
+  {
+    "id": "example-6",
+    "source": "<=",
+    "target": "≤",
+    "enabled": true,
+    "description": "Less than or equal",
+    "caseSensitive": true,
+    "wholeWord": false
+  },
+  {
+    "id": "example-7",
+    "source": "alpha",
+    "target": "α",
+    "enabled": true,
+    "description": "Greek letter alpha",
+    "caseSensitive": false,
+    "wholeWord": true
+  },
+  {
+    "id": "example-8",
+    "source": "beta",
+    "target": "β",
+    "enabled": true,
+    "description": "Greek letter beta",
+    "caseSensitive": false,
+    "wholeWord": true
+  },
+  {
+    "id": "example-9",
+    "source": "infinity",
+    "target": "∞",
+    "enabled": true,
+    "description": "Infinity symbol",
+    "caseSensitive": false,
+    "wholeWord": true
+  },
+  {
+    "id": "example-10",
+    "source": "(c)",
+    "target": "©",
+    "enabled": true,
+    "description": "Copyright symbol",
+    "caseSensitive": true,
+    "wholeWord": false
+  }
+]
