@@ -4,11 +4,11 @@
 
 ### Supercharge Your Text Editing in Obsidian
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/AR0NICA/ez-replace)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/AR0NICA/ez-replace)
 [![Obsidian](https://img.shields.io/badge/Obsidian-0.15.0+-purple.svg)](https://obsidian.md/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**A powerful Obsidian plugin for lightning-fast text replacement with customizable word pairs**
+**A powerful Obsidian plugin for lightning-fast text replacement with customizable word pairs and auto-complete suggestions**
 
 
 </div>
@@ -22,6 +22,7 @@ EZ Replace transforms the way you work with text in Obsidian. Define your own te
 ### Why EZ Replace?
 
 - **Save Time**: Replace `->` with `→` in a single keystroke
+- **Auto-Complete**: Get suggestions as you type with smart matching
 - **Stay Focused**: No need to search for special characters or break your flow
 - **Fully Customizable**: Create unlimited replacement pairs tailored to your needs
 - **Smart Matching**: Case-sensitive and whole-word matching options
@@ -37,6 +38,7 @@ EZ Replace transforms the way you work with text in Obsidian. Define your own te
 
 ### Core Functionality
 - **One-key Replacement**: Press your hotkey to instantly replace selected text
+- **Auto-Complete Suggester**: Get real-time suggestions as you type
 - **Custom Pairs**: Define unlimited source → target text pairs
 - **Quick Toggle**: Enable/disable pairs without deleting them
 - **Smart Reordering**: Move frequently used pairs to the top
@@ -49,6 +51,8 @@ EZ Replace transforms the way you work with text in Obsidian. Define your own te
 - **Whole Word Matching**: Replace only complete words, not parts
 - **Descriptions**: Add notes to remember what each pair is for
 - **Hotkey Customization**: Set your preferred keyboard shortcut
+- **Smart Matching Modes**: Choose between prefix or fuzzy matching
+- **Customizable Accept Keys**: Use Tab, Enter, or both to confirm suggestions
 
 </td>
 </tr>
@@ -176,6 +180,76 @@ Click the **⚙️ (gear icon)** on any pair to access:
 - **Whole Word Match**: 
   - `ON`: "cat" won't match in "caterpillar"
   - `OFF`: Matches anywhere in text
+
+</details>
+
+### Using Auto-Complete Suggester
+
+<details>
+<summary><strong>Getting Started with Auto-Complete</strong></summary>
+
+1. The suggester is **enabled by default**
+2. Start typing any source text (e.g., type `al` for `alpha`)
+3. Suggestions appear automatically after minimum characters (default: 2)
+4. Press **Tab** or **Enter** to accept a suggestion
+5. Continue typing normally to ignore suggestions
+
+**How it works:**
+- Suggester scans your enabled replacement pairs
+- Shows matches based on your matching mode (prefix or fuzzy)
+- Updates in real-time as you type
+- No need to select text first!
+
+</details>
+
+<details>
+<summary><strong>Configuring Suggester Settings</strong></summary>
+
+Go to `Settings → EZ Replace → Auto-complete suggester` section:
+
+**Enable auto-complete**
+- Toggle on/off to enable or disable the suggester
+
+**Minimum characters** (1-5)
+- How many characters you need to type before suggestions appear
+- Lower = more suggestions, Higher = more precise
+
+**Maximum suggestions** (3-10)
+- Limit how many suggestions to display at once
+- Prevents overwhelming the popup
+
+**Matching mode**
+- **Prefix matching**: Matches from the start of source text
+  - Type `al` → matches `alpha`, `alt`, but not `metal`
+- **Fuzzy matching**: Matches characters in order anywhere
+  - Type `al` → matches `alpha`, `animal`, `total`
+  - Scored by relevance (start matches rank higher)
+
+**Show descriptions**
+- Display description text in the suggestion popup
+- Helps identify what each replacement does
+
+**Case sensitive matching**
+- Match source text with exact case
+- When off, `AL` and `al` are treated the same
+
+**Confirmation keys**
+- **Tab and Enter** (default): Both keys accept suggestions
+- **Tab only**: Only Tab accepts, Enter creates new line
+- **Enter only**: Only Enter accepts, Tab inserts tab space
+
+</details>
+
+<details>
+<summary><strong>Tips for Best Results</strong></summary>
+
+- **Use descriptive source text** - Short, memorable abbreviations work best
+- **Adjust minimum characters** - Set to 1 for very short sources, 3+ for longer ones
+- **Try fuzzy matching** - Great for finding pairs when you don't remember exact spelling
+- **Customize accept keys** - Choose what works for your workflow
+  - Markdown editing: Tab+Enter both work well
+  - Code editing: Tab-only avoids accidental replacements on new lines
+- **Disable when not needed** - Toggle off for pure manual replacement mode
 
 </details>
 
@@ -366,6 +440,25 @@ ez-replace/
 ---
 
 ## Version History
+
+### v1.1.0 (2025-11-13)
+
+**Auto-Complete Suggester Release**
+
+- **NEW: Auto-complete suggester** - Get real-time suggestions as you type
+- **Prefix matching algorithm** - Match from the start of source text
+- **Fuzzy matching algorithm** - Match characters in order with intelligent scoring
+- **Customizable suggester settings** - 7 configuration options:
+  - Enable/disable toggle
+  - Minimum characters (1-5)
+  - Maximum suggestions (3-10)
+  - Matching mode (prefix/fuzzy)
+  - Show descriptions toggle
+  - Case sensitive matching
+  - Confirmation keys (Tab/Enter/Both)
+- **Tab and Enter key support** - Accept suggestions with your preferred key
+- **Smart suggestion rendering** - Shows target, source, and optional description
+- **Real-time suggestion updates** - Updates as you type with no lag
 
 ### v1.0.0 (2025-11-12)
 

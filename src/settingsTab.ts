@@ -42,6 +42,9 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 		// Hotkey configuration section
 		this.displayHotkeySection(containerEl);
 
+		// Auto-complete suggester section
+		this.displaySuggesterSection(containerEl);
+
 		// Add new pair button
 		new Setting(containerEl)
 			.setName('Add new replacement pair')
@@ -419,6 +422,110 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 				.setTooltip('Open Obsidian hotkey settings')
 				.onClick(() => {
 					this.openHotkeySettings();
+				}));
+	}
+
+	/**
+	 * Display auto-complete suggester section
+	 */
+	displaySuggesterSection(containerEl: HTMLElement): void {
+		const suggesterSection = containerEl.createDiv('ez-replace-suggester-section');
+		
+		// Section header
+		new Setting(suggesterSection)
+			.setHeading()
+			.setName('Auto-complete suggester');
+
+		// Enable/disable suggester
+		new Setting(suggesterSection)
+			.setName('Enable auto-complete')
+			.setDesc('Show suggestions while typing to quickly replace text')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.suggester.enabled)
+				.onChange(async (value) => {
+					this.plugin.settings.suggester.enabled = value;
+					await this.plugin.saveSettings();
+					this.display(); // Refresh to show/hide other options
+				}));
+
+		// Only show other options if suggester is enabled
+		if (!this.plugin.settings.suggester.enabled) {
+			return;
+		}
+
+		// Minimum characters
+		new Setting(suggesterSection)
+			.setName('Minimum characters')
+			.setDesc('Minimum number of characters to trigger suggestions (1-5)')
+			.addSlider(slider => slider
+				.setLimits(1, 5, 1)
+				.setValue(this.plugin.settings.suggester.minCharacters)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.suggester.minCharacters = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Maximum suggestions
+		new Setting(suggesterSection)
+			.setName('Maximum suggestions')
+			.setDesc('Maximum number of suggestions to show (3-10)')
+			.addSlider(slider => slider
+				.setLimits(3, 10, 1)
+				.setValue(this.plugin.settings.suggester.maxSuggestions)
+				.setDynamicTooltip()
+				.onChange(async (value) => {
+					this.plugin.settings.suggester.maxSuggestions = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Matching mode
+		new Setting(suggesterSection)
+			.setName('Matching mode')
+			.setDesc('Prefix: matches from start. Fuzzy: matches characters in order anywhere')
+			.addDropdown(dropdown => dropdown
+				.addOption('prefix', 'Prefix matching')
+				.addOption('fuzzy', 'Fuzzy matching')
+				.setValue(this.plugin.settings.suggester.matchingMode)
+				.onChange(async (value: 'prefix' | 'fuzzy') => {
+					this.plugin.settings.suggester.matchingMode = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Show description
+		new Setting(suggesterSection)
+			.setName('Show descriptions')
+			.setDesc('Display description text in suggestion popup')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.suggester.showDescription)
+				.onChange(async (value) => {
+					this.plugin.settings.suggester.showDescription = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Case sensitive
+		new Setting(suggesterSection)
+			.setName('Case sensitive matching')
+			.setDesc('Match source text with exact case')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.suggester.caseSensitive)
+				.onChange(async (value) => {
+					this.plugin.settings.suggester.caseSensitive = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// Accept keys
+		new Setting(suggesterSection)
+			.setName('Confirmation keys')
+			.setDesc('Keys to accept and apply suggestions')
+			.addDropdown(dropdown => dropdown
+				.addOption('both', 'Tab and Enter')
+				.addOption('tab', 'Tab only')
+				.addOption('enter', 'Enter only')
+				.setValue(this.plugin.settings.suggester.acceptKeys)
+				.onChange(async (value: 'tab' | 'enter' | 'both') => {
+					this.plugin.settings.suggester.acceptKeys = value;
+					await this.plugin.saveSettings();
 				}));
 	}
 

@@ -21,4 +21,18 @@ export interface ReplacementPair {
 export interface EZReplaceSettings {
 	replacementPairs: ReplacementPair[];
 	showNotification: boolean;
+	suggester: SuggesterSettings;
+}
+
+/**
+ * Auto-complete suggester settings
+ */
+export interface SuggesterSettings {
+	enabled: boolean;
+	minCharacters: number;
+	maxSuggestions: number;
+	matchingMode: 'prefix' | 'fuzzy';
+	showDescription: boolean;
+	caseSensitive: boolean;
+	acceptKeys: 'tab' | 'enter' | 'both';
 }

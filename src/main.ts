@@ -2,6 +2,7 @@ import { Plugin, Editor, App } from 'obsidian';
 import { EZReplaceSettings, ReplacementPair } from './types';
 import { DEFAULT_SETTINGS } from './settings';
 import { EZReplaceSettingTab } from './settingsTab';
+import { ReplacementSuggester } from './suggester';
 
 // Extend App interface for internal API access
 interface ExtendedApp extends App {
@@ -20,10 +21,15 @@ interface ExtendedApp extends App {
  */
 export default class EZReplacePlugin extends Plugin {
 	settings: EZReplaceSettings;
+	suggester: ReplacementSuggester;
 
 	async onload() {
 		// Load settings
 		await this.loadSettings();
+
+		// Initialize suggester
+		this.suggester = new ReplacementSuggester(this);
+		this.registerEditorSuggest(this.suggester);
 
 		// Add settings tab
 		this.addSettingTab(new EZReplaceSettingTab(this.app, this));

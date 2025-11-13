@@ -18,6 +18,19 @@
     font-weight: 500;
 }
 
+/* Suggester configuration section */
+.ez-replace-suggester-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--interactive-accent);
+    border-radius: 5px;
+}
+
+.ez-replace-suggester-section .setting-item-description {
+    color: var(--text-normal);
+}
+
 /* Replacement pairs container */
 .ez-replace-pairs-container {
     margin-top: 20px;
@@ -118,4 +131,29 @@
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
     z-index: 999;
+}
+
+/* Suggester styles */
+.ez-replace-suggestion {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+}
+
+.ez-replace-suggestion-target {
+    font-weight: 600;
+    color: var(--text-accent);
+    font-size: 1.1em;
+}
+
+.ez-replace-suggestion-source {
+    color: var(--text-muted);
+    font-family: var(--font-monospace);
+}
+
+.ez-replace-suggestion-desc {
+    color: var(--text-faint);
+    font-size: 0.9em;
+    font-style: italic;
 }

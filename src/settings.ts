@@ -42,5 +42,14 @@ export const DEFAULT_SETTINGS: EZReplaceSettings = {
 			wholeWord: false
 		}
 	],
-	showNotification: true
+	showNotification: true,
+	suggester: {
+		enabled: true,
+		minCharacters: 2,
+		maxSuggestions: 5,
+		matchingMode: 'prefix',
+		showDescription: true,
+		caseSensitive: false,
+		acceptKeys: 'both'
+	}
 };
