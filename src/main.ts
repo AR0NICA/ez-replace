@@ -1,5 +1,5 @@
 import { Plugin, Editor, App } from 'obsidian';
-import { EZReplaceSettings } from './types';
+import { EZReplaceSettings, ReplacementPair } from './types';
 import { DEFAULT_SETTINGS } from './settings';
 import { EZReplaceSettingTab } from './settingsTab';
 
@@ -98,7 +98,7 @@ export default class EZReplacePlugin extends Plugin {
 	/**
 	 * Check if text matches a replacement pair based on its options
 	 */
-	isMatch(text: string, pair: any): boolean {
+	isMatch(text: string, pair: ReplacementPair): boolean {
 		let sourceToMatch = pair.source;
 		let textToMatch = text;
 

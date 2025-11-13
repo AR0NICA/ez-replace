@@ -49,13 +49,13 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 			.addButton(button => button
 				.setButtonText('Add pair')
 				.setCta()
-				.onClick(() => {
-					this.addNewPair();
+				.onClick(async () => {
+					await this.addNewPair();
 				}));
 
 		// Import/Export section
 		new Setting(containerEl)
-			.setName('Backup & Restore')
+			.setName('Backup and restore')
 			.setDesc('Export your replacement pairs to JSON or import from a backup file')
 			.addButton(button => button
 				.setButtonText('Export to JSON')
@@ -322,22 +322,25 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 	/**
 	 * Show dialog with import options
 	 */
-	async showImportDialog(importedPairs: ReplacementPair[]): Promise<void> {
+	showImportDialog(importedPairs: ReplacementPair[]): void {
 		const currentCount = this.plugin.settings.replacementPairs.length;
 		const importCount = importedPairs.length;
 		
-		// Ask user for import mode using a simple approach
-		// Create a temporary setting to show options
+		// Create modal overlay
+		const overlay = document.createElement('div');
+		overlay.className = 'ez-replace-import-overlay';
+		
+		// Create modal
 		const modal = document.createElement('div');
-		modal.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--background-primary); padding: 20px; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 1000; max-width: 500px;';
+		modal.className = 'ez-replace-import-modal';
 		
 		const message = document.createElement('div');
+		message.className = 'ez-replace-import-modal-message';
 		message.textContent = `Found ${importCount} replacement pairs in the file. You currently have ${currentCount} pairs. How would you like to import?`;
-		message.style.marginBottom = '20px';
 		modal.appendChild(message);
 		
 		const buttonContainer = document.createElement('div');
-		buttonContainer.style.cssText = 'display: flex; gap: 10px; justify-content: flex-end;';
+		buttonContainer.className = 'ez-replace-import-modal-buttons';
 		
 		const replaceBtn = document.createElement('button');
 		replaceBtn.textContent = `Replace (${currentCount} → ${importCount})`;
@@ -375,8 +378,6 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 		buttonContainer.appendChild(replaceBtn);
 		modal.appendChild(buttonContainer);
 		
-		const overlay = document.createElement('div');
-		overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999;';
 		overlay.onclick = () => {
 			document.body.removeChild(modal);
 			document.body.removeChild(overlay);
@@ -411,7 +412,7 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 		const hotkeys = app.hotkeyManager.getHotkeys('ez-replace:replace-selected-text');
 		
 		new Setting(hotkeySection)
-			.setName('Hotkey Configuration')
+			.setName('Hotkey configuration')
 			.setDesc(this.getHotkeyDescription(hotkeys))
 			.addButton(button => button
 				.setButtonText('Configure Hotkey')
