@@ -33,7 +33,7 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 		// Header
 		new Setting(containerEl)
 			.setHeading()
-			.setName('EZ Replace Settings');
+			.setName('Ez replace settings');
 
 		// Description
 		new Setting(containerEl)
@@ -202,7 +202,7 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 			.setName('Description')
 			.setDesc('Optional description for this replacement pair')
 			.addText(text => text
-				.setPlaceholder('e.g., Arrow symbol')
+				.setPlaceholder('E.g., arrow symbol')
 				.setValue(pair.description || '')
 				.onChange(async (value) => {
 					pair.description = value;
@@ -415,7 +415,7 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 			.setName('Hotkey configuration')
 			.setDesc(this.getHotkeyDescription(hotkeys))
 			.addButton(button => button
-				.setButtonText('Configure Hotkey')
+				.setButtonText('Configure hotkey')
 				.setTooltip('Open Obsidian hotkey settings')
 				.onClick(() => {
 					this.openHotkeySettings();
