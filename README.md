@@ -121,12 +121,17 @@ cp main.js manifest.json styles.css <your-vault>/.obsidian/plugins/ez-replace/
    - Navigate to `Settings → EZ Replace`
    - Or use Command Palette: `EZ Replace: Open settings`
 
-2. **Try the Default Pairs**
+2. **Configure Your Hotkey**
+   - In the settings, find **"Hotkey Configuration"** section
+   - Click **"Configure Hotkey"** button
+   - Set your preferred keyboard shortcut (e.g., `Ctrl+Shift+R`)
+
+3. **Try the Default Pairs**
    - Select `->` in your note
-   - Press `Ctrl+Shift+R` (Windows/Linux) or `Cmd+Shift+R` (Mac)
+   - Press your configured hotkey
    - Watch it transform to `→`
 
-3. **Create Your First Custom Pair**
+4. **Create Your First Custom Pair**
    - Click **"Add pair"** button
    - Enter source text (e.g., `alpha`)
    - Enter target text (e.g., `α`)
@@ -176,13 +181,15 @@ Click the **⚙️ (gear icon)** on any pair to access:
 
 ### Customizing Your Hotkey
 
+**Note**: EZ Replace does not set a default hotkey. You must configure one before using the plugin.
+
 <details>
 <summary><strong>Method 1: From Plugin Settings</strong></summary>
 
 1. Open `Settings → EZ Replace`
 2. Look for **"Hotkey Configuration"** at the top
 3. Click **"Configure Hotkey"**
-4. Set your preferred key combination
+4. Set your preferred key combination (e.g., `Ctrl+Shift+R`)
 
 </details>
 
@@ -370,6 +377,8 @@ ez-replace/
 - Advanced options (Case-sensitive, Whole word matching, Description)
 - JSON Export/Import (Replace & Merge modes)
 - Hotkey configuration UI with quick access to settings
+- Clean implementation following Obsidian best practices
+- No default hotkey - user must configure their preferred shortcut
 
 ---
 

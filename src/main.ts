@@ -1,7 +1,19 @@
-import { Plugin, Editor } from 'obsidian';
+import { Plugin, Editor, App } from 'obsidian';
 import { EZReplaceSettings } from './types';
 import { DEFAULT_SETTINGS } from './settings';
 import { EZReplaceSettingTab } from './settingsTab';
+
+// Extend App interface for internal API access
+interface ExtendedApp extends App {
+	setting: {
+		open(): void;
+		openTabById(id: string): void;
+		close(): void;
+	};
+	hotkeyManager: {
+		getHotkeys(commandId: string): Array<{modifiers: string[], key: string}>;
+	};
+}
 
 /**
  * Main plugin class for EZ Replace
@@ -10,8 +22,6 @@ export default class EZReplacePlugin extends Plugin {
 	settings: EZReplaceSettings;
 
 	async onload() {
-		console.log('Loading EZ Replace plugin');
-
 		// Load settings
 		await this.loadSettings();
 
@@ -24,13 +34,7 @@ export default class EZReplacePlugin extends Plugin {
 			name: 'Replace selected text',
 			editorCallback: (editor: Editor) => {
 				this.replaceSelectedText(editor);
-			},
-			hotkeys: [
-				{
-					modifiers: ['Ctrl', 'Shift'],
-					key: 'r'
-				}
-			]
+			}
 		});
 
 		// Add command to open settings
@@ -41,12 +45,9 @@ export default class EZReplacePlugin extends Plugin {
 				this.openSettings();
 			}
 		});
-
-		console.log('EZ Replace plugin loaded');
 	}
 
 	onunload() {
-		console.log('Unloading EZ Replace plugin');
 	}
 
 	async loadSettings() {
@@ -64,11 +65,8 @@ export default class EZReplacePlugin extends Plugin {
 		const selectedText = editor.getSelection();
 		
 		if (!selectedText) {
-			console.log('No text selected');
 			return;
 		}
-
-		console.log('Selected text:', selectedText);
 		
 		// Find matching replacement pair
 		const matchedPair = this.findMatchingPair(selectedText);
@@ -76,9 +74,6 @@ export default class EZReplacePlugin extends Plugin {
 		if (matchedPair) {
 			// Replace the selected text with target
 			editor.replaceSelection(matchedPair.target);
-			console.log(`Replaced "${matchedPair.source}" with "${matchedPair.target}"`);
-		} else {
-			console.log('No matching replacement pair found');
 		}
 	}
 
@@ -136,7 +131,8 @@ export default class EZReplacePlugin extends Plugin {
 	 * Open plugin settings
 	 */
 	openSettings(): void {
-		(this.app as any).setting.open();
-		(this.app as any).setting.openTabById('ez-replace');
+		const app = this.app as ExtendedApp;
+		app.setting.open();
+		app.setting.openTabById('ez-replace');
 	}
 }

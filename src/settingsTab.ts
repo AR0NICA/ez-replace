@@ -1,6 +1,18 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import EZReplacePlugin from './main';
 import { ReplacementPair } from './types';
+
+// Extend App interface for internal API access
+interface ExtendedApp extends App {
+	setting: {
+		open(): void;
+		openTabById(id: string): void;
+		close(): void;
+	};
+	hotkeyManager: {
+		getHotkeys(commandId: string): Array<{modifiers: string[], key: string}>;
+	};
+}
 
 /**
  * Settings tab for EZ Replace plugin
@@ -19,12 +31,13 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		// Header
-		containerEl.createEl('h2', { text: 'EZ Replace Settings' });
+		new Setting(containerEl)
+			.setHeading()
+			.setName('EZ Replace Settings');
 
 		// Description
-		containerEl.createEl('p', {
-			text: 'Manage your text replacement pairs. Select text and use the hotkey to replace.'
-		});
+		new Setting(containerEl)
+			.setDesc('Manage your text replacement pairs. Select text and use the hotkey to replace.');
 
 		// Hotkey configuration section
 		this.displayHotkeySection(containerEl);
@@ -67,11 +80,9 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 	displayReplacementPairs(containerEl: HTMLElement): void {
 		const pairsContainer = containerEl.createDiv('ez-replace-pairs-container');
 
-		if (this.plugin.settings.replacementPairs.length === 0) {
-			pairsContainer.createEl('p', {
-				text: 'No replacement pairs yet. Add one to get started!',
-				cls: 'ez-replace-empty-message'
-			});
+	if (this.plugin.settings.replacementPairs.length === 0) {
+			new Setting(pairsContainer)
+				.setDesc('No replacement pairs yet. Add one to get started!');
 			return;
 		}
 
@@ -224,7 +235,7 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 	/**
 	 * Add a new replacement pair
 	 */
-	addNewPair(): void {
+	async addNewPair(): Promise<void> {
 		const newPair: ReplacementPair = {
 			id: `pair-${Date.now()}`,
 			source: '',
@@ -236,7 +247,7 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 		};
 
 		this.plugin.settings.replacementPairs.push(newPair);
-		this.plugin.saveSettings();
+		await this.plugin.saveSettings();
 		this.display(); // Refresh the display
 	}
 
@@ -260,8 +271,6 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 		
 		// Clean up
 		URL.revokeObjectURL(url);
-		
-		console.log('Settings exported successfully');
 	}
 
 	/**
@@ -302,7 +311,7 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 				
 			} catch (error) {
 				console.error('Import failed:', error);
-				alert(`✗ Import failed: ${error.message}`);
+				new Notice(`✗ Import failed: ${error.message}`);
 			}
 		};
 		
@@ -317,38 +326,64 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 		const currentCount = this.plugin.settings.replacementPairs.length;
 		const importCount = importedPairs.length;
 		
-		// Create a custom modal-like dialog
-		const message = `Found ${importCount} replacement pairs in the file.\nYou currently have ${currentCount} pairs.\n\nHow would you like to import?`;
+		// Ask user for import mode using a simple approach
+		// Create a temporary setting to show options
+		const modal = document.createElement('div');
+		modal.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--background-primary); padding: 20px; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 1000; max-width: 500px;';
 		
-		// Use native confirm dialogs for simplicity
-		const shouldReplace = confirm(
-			`${message}\n\n` +
-			`Click OK to REPLACE all current pairs (${currentCount} → ${importCount})\n` +
-			`Click Cancel to see merge option`
-		);
+		const message = document.createElement('div');
+		message.textContent = `Found ${importCount} replacement pairs in the file. You currently have ${currentCount} pairs. How would you like to import?`;
+		message.style.marginBottom = '20px';
+		modal.appendChild(message);
 		
-		if (shouldReplace) {
-			// Replace mode
+		const buttonContainer = document.createElement('div');
+		buttonContainer.style.cssText = 'display: flex; gap: 10px; justify-content: flex-end;';
+		
+		const replaceBtn = document.createElement('button');
+		replaceBtn.textContent = `Replace (${currentCount} → ${importCount})`;
+		replaceBtn.className = 'mod-warning';
+		replaceBtn.onclick = async () => {
 			this.plugin.settings.replacementPairs = importedPairs;
 			await this.plugin.saveSettings();
 			this.display();
-			alert(`✓ Replaced all pairs. Now you have ${importCount} replacement pairs.`);
-		} else {
-			// Ask for merge
-			const shouldMerge = confirm(
-				`Would you like to MERGE instead?\n\n` +
-				`Click OK to add imported pairs to existing ones (${currentCount} + ${importCount} = ${currentCount + importCount})\n` +
-				`Click Cancel to abort import`
-			);
-			
-			if (shouldMerge) {
-				// Merge mode - add imported pairs to existing ones
-				this.plugin.settings.replacementPairs.push(...importedPairs);
-				await this.plugin.saveSettings();
-				this.display();
-				alert(`✓ Merged successfully. Now you have ${this.plugin.settings.replacementPairs.length} replacement pairs.`);
-			}
-		}
+			new Notice(`✓ Replaced all pairs. Now you have ${importCount} replacement pairs.`);
+			document.body.removeChild(modal);
+			document.body.removeChild(overlay);
+		};
+		
+		const mergeBtn = document.createElement('button');
+		mergeBtn.textContent = `Merge (${currentCount} + ${importCount})`;
+		mergeBtn.className = 'mod-cta';
+		mergeBtn.onclick = async () => {
+			this.plugin.settings.replacementPairs.push(...importedPairs);
+			await this.plugin.saveSettings();
+			this.display();
+			new Notice(`✓ Merged successfully. Now you have ${this.plugin.settings.replacementPairs.length} replacement pairs.`);
+			document.body.removeChild(modal);
+			document.body.removeChild(overlay);
+		};
+		
+		const cancelBtn = document.createElement('button');
+		cancelBtn.textContent = 'Cancel';
+		cancelBtn.onclick = () => {
+			document.body.removeChild(modal);
+			document.body.removeChild(overlay);
+		};
+		
+		buttonContainer.appendChild(cancelBtn);
+		buttonContainer.appendChild(mergeBtn);
+		buttonContainer.appendChild(replaceBtn);
+		modal.appendChild(buttonContainer);
+		
+		const overlay = document.createElement('div');
+		overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999;';
+		overlay.onclick = () => {
+			document.body.removeChild(modal);
+			document.body.removeChild(overlay);
+		};
+		
+		document.body.appendChild(overlay);
+		document.body.appendChild(modal);
 	}
 
 	/**
@@ -372,7 +407,8 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 		const hotkeySection = containerEl.createDiv('ez-replace-hotkey-section');
 		
 		// Get current hotkeys for this plugin's command
-		const hotkeys = (this.app as any).hotkeyManager.getHotkeys('ez-replace:replace-selected-text');
+		const app = this.app as ExtendedApp;
+		const hotkeys = app.hotkeyManager.getHotkeys('ez-replace:replace-selected-text');
 		
 		new Setting(hotkeySection)
 			.setName('Hotkey Configuration')
@@ -388,13 +424,13 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 	/**
 	 * Get description text for current hotkeys
 	 */
-	getHotkeyDescription(hotkeys: any[]): string {
+	getHotkeyDescription(hotkeys: Array<{modifiers: string[], key: string}>): string {
 		if (!hotkeys || hotkeys.length === 0) {
 			return 'No hotkey configured. Click below to set one up.';
 		}
 		
-		const hotkeyStrings = hotkeys.map((hotkey: any) => {
-			const modifiers = [];
+		const hotkeyStrings = hotkeys.map((hotkey) => {
+			const modifiers: string[] = [];
 			if (hotkey.modifiers) {
 				modifiers.push(...hotkey.modifiers);
 			}
@@ -409,12 +445,14 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 	 * Open Obsidian's hotkey settings
 	 */
 	openHotkeySettings(): void {
+		const app = this.app as ExtendedApp;
+		
 		// Close current settings
-		(this.app as any).setting.close();
+		app.setting.close();
 		
 		// Open settings and navigate to hotkeys
-		(this.app as any).setting.open();
-		(this.app as any).setting.openTabById('hotkeys');
+		app.setting.open();
+		app.setting.openTabById('hotkeys');
 		
 		// Try to filter/search for our plugin
 		setTimeout(() => {
