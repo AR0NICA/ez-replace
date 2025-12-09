@@ -18,6 +18,19 @@
     font-weight: 500;
 }
 
+/* Suggester configuration section */
+.ez-replace-suggester-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--interactive-accent);
+    border-radius: 5px;
+}
+
+.ez-replace-suggester-section .setting-item-description {
+    color: var(--text-normal);
+}
+
 /* Replacement pairs container */
 .ez-replace-pairs-container {
     margin-top: 20px;
@@ -118,4 +131,196 @@
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
     z-index: 999;
+}
+
+/* Suggester styles */
+.ez-replace-suggestion {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+}
+
+.ez-replace-suggestion-target {
+    font-weight: 600;
+    color: var(--text-accent);
+    font-size: 1.1em;
+}
+
+.ez-replace-suggestion-source {
+    color: var(--text-muted);
+    font-family: var(--font-monospace);
+}
+
+.ez-replace-suggestion-desc {
+    color: var(--text-faint);
+    font-size: 0.9em;
+    font-style: italic;
+}
+
+/* ======================================
+   v1.2.0: Search and Filter Styles
+   ====================================== */
+
+/* Search section container */
+.ez-replace-search-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 5px;
+}
+
+/* Search input styling */
+.ez-replace-search-input {
+    min-width: 200px;
+}
+
+/* Filter info text */
+.ez-replace-filter-info {
+    color: var(--text-muted);
+    font-size: 0.9em;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: 10px;
+}
+
+/* Tag filter container */
+.ez-replace-tag-filter-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+/* Tag filter buttons */
+.ez-replace-tag-button {
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    color: var(--text-muted);
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ez-replace-tag-button:hover {
+    border-color: var(--interactive-accent);
+    color: var(--text-normal);
+}
+
+.ez-replace-tag-button.is-selected {
+    background-color: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+/* Tag badge in pair list */
+.ez-replace-pair-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.ez-replace-tag-badge {
+    padding: 2px 8px;
+    border-radius: 10px;
+    background-color: var(--background-modifier-border);
+    color: var(--text-muted);
+    font-size: 0.75em;
+}
+
+/* Usage count badge */
+.ez-replace-usage-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    font-size: 0.75em;
+    margin-left: 8px;
+}
+
+.ez-replace-usage-badge.no-usage {
+    background-color: var(--background-modifier-border);
+    color: var(--text-muted);
+}
+
+/* Quick tags in advanced options */
+.ez-replace-quick-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 8px;
+    background-color: var(--background-secondary);
+    border-radius: 4px;
+}
+
+.ez-replace-quick-tags-label {
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+
+.ez-replace-quick-tag-btn {
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px dashed var(--background-modifier-border);
+    background-color: transparent;
+    color: var(--text-muted);
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ez-replace-quick-tag-btn:hover {
+    border-style: solid;
+    border-color: var(--interactive-accent);
+    color: var(--interactive-accent);
+}
+
+/* ======================================
+   v1.2.0: Statistics Section Styles
+   ====================================== */
+
+/* Statistics section container */
+.ez-replace-stats-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 5px;
+}
+
+/* Top pairs list */
+.ez-replace-top-pairs-list {
+    padding: 10px 0;
+}
+
+.ez-replace-top-pair-item {
+    padding: 6px 10px;
+    margin: 4px 0;
+    background-color: var(--background-primary);
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.ez-replace-top-pair-rank {
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.ez-replace-top-pair-text {
+    color: var(--text-normal);
+    font-family: var(--font-monospace);
+}
+
+.ez-replace-top-pair-count {
+    color: var(--text-accent);
+    font-weight: 500;
 }

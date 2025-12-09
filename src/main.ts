@@ -2,6 +2,7 @@ import { Plugin, Editor, App } from 'obsidian';
 import { EZReplaceSettings, ReplacementPair } from './types';
 import { DEFAULT_SETTINGS } from './settings';
 import { EZReplaceSettingTab } from './settingsTab';
+import { ReplacementSuggester } from './suggester';
 
 // Extend App interface for internal API access
 interface ExtendedApp extends App {
@@ -20,10 +21,15 @@ interface ExtendedApp extends App {
  */
 export default class EZReplacePlugin extends Plugin {
 	settings: EZReplaceSettings;
+	suggester: ReplacementSuggester;
 
 	async onload() {
 		// Load settings
 		await this.loadSettings();
+
+		// Initialize suggester
+		this.suggester = new ReplacementSuggester(this);
+		this.registerEditorSuggest(this.suggester);
 
 		// Add settings tab
 		this.addSettingTab(new EZReplaceSettingTab(this.app, this));
@@ -74,7 +80,25 @@ export default class EZReplacePlugin extends Plugin {
 		if (matchedPair) {
 			// Replace the selected text with target
 			editor.replaceSelection(matchedPair.target);
+			
+			// Update usage statistics (v1.2.0)
+			this.updateUsageStatistics(matchedPair);
 		}
+	}
+
+	/**
+	 * Update usage statistics for a replacement pair (v1.2.0)
+	 */
+	async updateUsageStatistics(pair: ReplacementPair): Promise<void> {
+		// Update pair-level statistics
+		pair.usageCount = (pair.usageCount || 0) + 1;
+		pair.lastUsedAt = Date.now();
+		
+		// Update global statistics
+		this.settings.statistics.totalReplacements = 
+			(this.settings.statistics.totalReplacements || 0) + 1;
+		
+		await this.saveSettings();
 	}
 
 	/**
