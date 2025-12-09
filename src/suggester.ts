@@ -217,5 +217,8 @@ export class ReplacementSuggester extends EditorSuggest<ReplacementPair> {
 			ch: start.ch + pair.target.length
 		};
 		editor.setCursor(newCursorPos);
+
+		// Update usage statistics (v1.2.0)
+		this.plugin.updateUsageStatistics(pair);
 	}
 }
