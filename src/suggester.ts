@@ -92,16 +92,26 @@ export class ReplacementSuggester extends EditorSuggest<ReplacementPair> {
 		// Get enabled replacement pairs
 		const enabledPairs = settings.replacementPairs.filter(pair => pair.enabled);
 
-		// Match based on selected mode
-		let matches: ReplacementPair[];
+		// Separate regex and non-regex pairs
+		const regularPairs = enabledPairs.filter(pair => !pair.isRegex);
+		const regexPairs = enabledPairs.filter(pair => pair.isRegex);
+
+		// Match regular pairs based on selected mode
+		let regularMatches: ReplacementPair[];
 		if (settings.suggester.matchingMode === 'prefix') {
-			matches = this.prefixMatch(query, enabledPairs);
+			regularMatches = this.prefixMatch(query, regularPairs);
 		} else {
-			matches = this.fuzzyMatch(query, enabledPairs);
+			regularMatches = this.fuzzyMatch(query, regularPairs);
 		}
 
+		// Match regex pairs (v1.3.0)
+		const regexMatches = this.regexPrefixMatch(query, regexPairs);
+
+		// Combine results: regular matches first, then regex matches
+		const allMatches = [...regularMatches, ...regexMatches];
+
 		// Limit results and store for Tab key handler
-		this.currentSuggestions = matches.slice(0, settings.suggester.maxSuggestions);
+		this.currentSuggestions = allMatches.slice(0, settings.suggester.maxSuggestions);
 		return this.currentSuggestions;
 	}
 
@@ -137,6 +147,42 @@ export class ReplacementSuggester extends EditorSuggest<ReplacementPair> {
 			.filter(item => item.score > 0)
 			.sort((a, b) => b.score - a.score)
 			.map(item => item.pair);
+	}
+
+	/**
+	 * Regex prefix matching algorithm (v1.3.0)
+	 * Matches regex pairs where the query could potentially match the pattern
+	 */
+	private regexPrefixMatch(query: string, pairs: ReplacementPair[]): ReplacementPair[] {
+		const matches: ReplacementPair[] = [];
+
+		for (const pair of pairs) {
+			// Validate the regex pattern first
+			const validation = this.plugin.validateRegex(pair.source, pair.regexFlags);
+			if (!validation.valid) {
+				continue;
+			}
+
+			try {
+				let flags = pair.regexFlags || '';
+				if (pair.caseSensitive === false && !flags.includes('i')) {
+					flags += 'i';
+				}
+
+				const regex = new RegExp(pair.source, flags);
+				
+				// Check if query matches the pattern (full or partial)
+				// For suggester, we show if the current input matches
+				if (regex.test(query)) {
+					matches.push(pair);
+				}
+			} catch {
+				// Skip invalid regex patterns
+				continue;
+			}
+		}
+
+		return matches;
 	}
 
 	/**
@@ -177,6 +223,14 @@ export class ReplacementSuggester extends EditorSuggest<ReplacementPair> {
 		const target = container.createSpan({ cls: 'ez-replace-suggestion-target' });
 		target.setText(pair.target);
 
+		// v1.3.0: Regex badge
+		if (pair.isRegex) {
+			container.createSpan({ 
+				text: 'Regex', 
+				cls: 'ez-replace-suggestion-regex-badge' 
+			});
+		}
+
 		// Source text (original)
 		const source = container.createSpan({ cls: 'ez-replace-suggestion-source' });
 		source.setText(` ${pair.source}`);
@@ -206,15 +260,38 @@ export class ReplacementSuggester extends EditorSuggest<ReplacementPair> {
 
 		const start = this.context?.start;
 		const end = this.context?.end;
+		const query = this.context?.query;
 		if (!start || !end) return;
 
+		// Determine replacement text
+		let replacement = pair.target;
+
+		// v1.3.0: Apply capture groups for regex pairs
+		if (pair.isRegex && query) {
+			try {
+				let flags = pair.regexFlags || '';
+				if (pair.caseSensitive === false && !flags.includes('i')) {
+					flags += 'i';
+				}
+
+				const regex = new RegExp(pair.source, flags);
+				const match = query.match(regex);
+
+				if (match) {
+					replacement = this.plugin.applyCaptureGroups(pair.target, match);
+				}
+			} catch {
+				// Fall back to original target on error
+			}
+		}
+
 		// Replace the text
-		editor.replaceRange(pair.target, start, end);
+		editor.replaceRange(replacement, start, end);
 
 		// Move cursor to end of replacement
 		const newCursorPos = {
 			line: start.line,
-			ch: start.ch + pair.target.length
+			ch: start.ch + replacement.length
 		};
 		editor.setCursor(newCursorPos);
 

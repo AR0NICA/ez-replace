@@ -1,6 +1,20 @@
-import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice, Modal } from 'obsidian';
 import EZReplacePlugin from './main';
-import { ReplacementPair, SortField, SortOrder } from './types';
+import { ReplacementPair, SortField, SortOrder, RegexTemplate, RegexTemplateCategory, ContextType } from './types';
+import { REGEX_TEMPLATES, TEMPLATE_CATEGORY_NAMES, getTemplatesByCategory, getTemplateCategories } from './regexTemplates';
+
+/**
+ * Context type display names (v1.3.0)
+ */
+const CONTEXT_TYPE_NAMES: Record<ContextType, string> = {
+	codeBlock: 'Code Block',
+	inlineCode: 'Inline Code',
+	heading: 'Heading',
+	link: 'Link',
+	quote: 'Blockquote',
+	list: 'List Item',
+	normal: 'Normal Text'
+};
 
 // Extend App interface for internal API access
 interface ExtendedApp extends App {
@@ -175,6 +189,12 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 				.setCta()
 				.onClick(async () => {
 					await this.addNewPair();
+				}))
+			.addButton(button => button
+				.setButtonText('Regex Templates')
+				.setTooltip('Browse pre-built regex patterns')
+				.onClick(() => {
+					new RegexTemplateModal(this.app, this.plugin, this).open();
 				}));
 
 		// Import/Export section
@@ -393,6 +413,11 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 				await this.plugin.saveSettings();
 			}));
 
+		// v1.3.0: Regex mode badge
+		if (pair.isRegex) {
+			pairSetting.settingEl.createSpan({ text: 'Regex', cls: 'ez-replace-regex-badge' });
+		}
+
 		// Arrow indicator
 		pairSetting.settingEl.createSpan({ text: ' → ', cls: 'ez-replace-arrow' });
 
@@ -486,6 +511,9 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		// v1.3.0: Regex support section
+		this.displayRegexOptions(advancedContainer, pair);
+
 		// Tags field (v1.2.0)
 		const tagsSetting = new Setting(advancedContainer)
 			.setName('Tags')
@@ -544,6 +572,257 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 	}
 
 	/**
+	 * Display regex options section (v1.3.0)
+	 */
+	displayRegexOptions(container: HTMLElement, pair: ReplacementPair): void {
+		// Regex mode section header
+		const regexSection = container.createDiv('ez-replace-regex-section');
+		regexSection.createEl('h4', { 
+			text: 'Regular Expression', 
+			cls: 'ez-replace-section-header' 
+		});
+
+		// Regex mode toggle
+		const regexToggleSetting = new Setting(regexSection)
+			.setName('Enable regex mode')
+			.setDesc('Treat source as a regular expression pattern');
+
+		regexToggleSetting.addToggle(toggle => toggle
+			.setValue(pair.isRegex || false)
+			.onChange(async (value) => {
+				pair.isRegex = value;
+				await this.plugin.saveSettings();
+				// Refresh to show/hide regex-specific options
+				this.display();
+			}));
+
+		// Only show additional regex options if regex mode is enabled
+		if (pair.isRegex) {
+			// Regex validation status
+			const validationResult = this.plugin.validateRegex(pair.source, pair.regexFlags);
+			const validationContainer = regexSection.createDiv('ez-replace-regex-validation');
+			
+			if (pair.source && !validationResult.valid) {
+				validationContainer.addClass('is-error');
+				validationContainer.createSpan({ 
+					text: `Invalid pattern: ${validationResult.error}`,
+					cls: 'ez-replace-regex-error'
+				});
+			} else if (pair.source) {
+				validationContainer.addClass('is-valid');
+				validationContainer.createSpan({ 
+					text: 'Pattern is valid',
+					cls: 'ez-replace-regex-valid'
+				});
+			}
+
+			// Regex flags selection
+			new Setting(regexSection)
+				.setName('Regex flags')
+				.setDesc('i: case-insensitive, m: multiline, s: dotall (. matches newlines)')
+				.addDropdown(dropdown => dropdown
+					.addOption('', 'None')
+					.addOption('i', 'i (case-insensitive)')
+					.addOption('m', 'm (multiline)')
+					.addOption('s', 's (dotall)')
+					.addOption('im', 'im (case-insensitive + multiline)')
+					.addOption('is', 'is (case-insensitive + dotall)')
+					.addOption('ms', 'ms (multiline + dotall)')
+					.addOption('ims', 'ims (all flags)')
+					.setValue(pair.regexFlags || '')
+					.onChange(async (value) => {
+						pair.regexFlags = value;
+						await this.plugin.saveSettings();
+					}));
+
+			// Capture groups help
+			const captureHelpSetting = new Setting(regexSection)
+				.setName('Capture groups')
+				.setDesc('Use $1, $2, ... $9 in target to reference captured groups. $0 = full match.');
+
+			// Test preview section
+			this.displayRegexTestPreview(regexSection, pair);
+		}
+
+		// v1.3.0: Context-aware matching section
+		this.displayContextOptions(container, pair);
+	}
+
+	/**
+	 * Display context-aware matching options (v1.3.0)
+	 */
+	displayContextOptions(container: HTMLElement, pair: ReplacementPair): void {
+		const contextSection = container.createDiv('ez-replace-context-section');
+		contextSection.createEl('h4', { 
+			text: 'Context Matching', 
+			cls: 'ez-replace-section-header' 
+		});
+
+		// Initialize matchContext if not exists
+		if (!pair.matchContext) {
+			pair.matchContext = { include: [], exclude: [] };
+		}
+
+		// Exclude contexts
+		const excludeSetting = new Setting(contextSection)
+			.setName('Exclude contexts')
+			.setDesc('Skip replacement in these contexts (e.g., do not replace in code blocks)');
+
+		const excludeContainer = contextSection.createDiv('ez-replace-context-buttons');
+		const allContextTypes: ContextType[] = ['codeBlock', 'inlineCode', 'heading', 'link', 'quote', 'list', 'normal'];
+		
+		allContextTypes.forEach(contextType => {
+			const isExcluded = pair.matchContext?.exclude?.includes(contextType) || false;
+			const btn = excludeContainer.createEl('button', {
+				text: CONTEXT_TYPE_NAMES[contextType],
+				cls: `ez-replace-context-btn ${isExcluded ? 'is-excluded' : ''}`
+			});
+			
+			btn.onclick = async () => {
+				if (!pair.matchContext) pair.matchContext = { include: [], exclude: [] };
+				if (!pair.matchContext.exclude) pair.matchContext.exclude = [];
+				
+				const idx = pair.matchContext.exclude.indexOf(contextType);
+				if (idx === -1) {
+					pair.matchContext.exclude.push(contextType);
+					btn.addClass('is-excluded');
+				} else {
+					pair.matchContext.exclude.splice(idx, 1);
+					btn.removeClass('is-excluded');
+				}
+				
+				await this.plugin.saveSettings();
+			};
+		});
+
+		// Include contexts (only match in specific contexts)
+		const includeSetting = new Setting(contextSection)
+			.setName('Include only (optional)')
+			.setDesc('If set, only match in these specific contexts');
+
+		const includeContainer = contextSection.createDiv('ez-replace-context-buttons');
+		
+		allContextTypes.forEach(contextType => {
+			const isIncluded = pair.matchContext?.include?.includes(contextType) || false;
+			const btn = includeContainer.createEl('button', {
+				text: CONTEXT_TYPE_NAMES[contextType],
+				cls: `ez-replace-context-btn ${isIncluded ? 'is-included' : ''}`
+			});
+			
+			btn.onclick = async () => {
+				if (!pair.matchContext) pair.matchContext = { include: [], exclude: [] };
+				if (!pair.matchContext.include) pair.matchContext.include = [];
+				
+				const idx = pair.matchContext.include.indexOf(contextType);
+				if (idx === -1) {
+					pair.matchContext.include.push(contextType);
+					btn.addClass('is-included');
+				} else {
+					pair.matchContext.include.splice(idx, 1);
+					btn.removeClass('is-included');
+				}
+				
+				await this.plugin.saveSettings();
+			};
+		});
+
+		// Clear all button
+		new Setting(contextSection)
+			.addButton(button => button
+				.setButtonText('Clear all context filters')
+				.onClick(async () => {
+					pair.matchContext = { include: [], exclude: [] };
+					await this.plugin.saveSettings();
+					this.display();
+				}));
+	}
+
+	/**
+	 * Display regex test preview section (v1.3.0)
+	 */
+	displayRegexTestPreview(container: HTMLElement, pair: ReplacementPair): void {
+		const previewContainer = container.createDiv('ez-replace-regex-preview');
+		previewContainer.createEl('h5', { 
+			text: 'Test Preview', 
+			cls: 'ez-replace-preview-header' 
+		});
+
+		// Test input field
+		const testInputSetting = new Setting(previewContainer)
+			.setName('Test input')
+			.setDesc('Enter text to test the regex pattern');
+
+		let testInput = '';
+		let resultEl: HTMLElement | null = null;
+
+		testInputSetting.addText(text => {
+			text.setPlaceholder('Enter test text...')
+				.onChange((value) => {
+					testInput = value;
+					this.updateRegexPreviewResult(pair, testInput, resultEl);
+				});
+		});
+
+		// Result display
+		const resultContainer = previewContainer.createDiv('ez-replace-preview-result');
+		resultContainer.createSpan({ text: 'Result: ', cls: 'ez-replace-preview-label' });
+		resultEl = resultContainer.createSpan({ cls: 'ez-replace-preview-value' });
+		resultEl.setText('(enter test input above)');
+	}
+
+	/**
+	 * Update regex preview result (v1.3.0)
+	 */
+	updateRegexPreviewResult(pair: ReplacementPair, testInput: string, resultEl: HTMLElement | null): void {
+		if (!resultEl) return;
+
+		if (!testInput) {
+			resultEl.setText('(enter test input above)');
+			resultEl.removeClass('is-match', 'is-no-match', 'is-error');
+			return;
+		}
+
+		const validation = this.plugin.validateRegex(pair.source, pair.regexFlags);
+		if (!validation.valid) {
+			resultEl.setText('Invalid regex pattern');
+			resultEl.removeClass('is-match', 'is-no-match');
+			resultEl.addClass('is-error');
+			return;
+		}
+
+		try {
+			let flags = pair.regexFlags || '';
+			if (pair.caseSensitive === false && !flags.includes('i')) {
+				flags += 'i';
+			}
+
+			const regex = new RegExp(pair.source, flags);
+			const match = testInput.match(regex);
+
+			if (match && match[0] === testInput) {
+				// Full match - apply capture groups
+				const result = this.plugin.applyCaptureGroups(pair.target, match);
+				resultEl.setText(result);
+				resultEl.removeClass('is-no-match', 'is-error');
+				resultEl.addClass('is-match');
+			} else if (match) {
+				// Partial match
+				resultEl.setText(`Partial match: "${match[0]}" (full text match required)`);
+				resultEl.removeClass('is-match', 'is-error');
+				resultEl.addClass('is-no-match');
+			} else {
+				resultEl.setText('No match');
+				resultEl.removeClass('is-match', 'is-error');
+				resultEl.addClass('is-no-match');
+			}
+		} catch (e) {
+			resultEl.setText(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`);
+			resultEl.removeClass('is-match', 'is-no-match');
+			resultEl.addClass('is-error');
+		}
+	}
+
+	/**
 	 * Add a new replacement pair
 	 */
 	async addNewPair(): Promise<void> {
@@ -559,7 +838,10 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 			tags: [],
 			createdAt: Date.now(),
 			usageCount: 0,
-			lastUsedAt: undefined
+			lastUsedAt: undefined,
+			// v1.3.0 fields
+			isRegex: false,
+			regexFlags: ''
 		};
 
 		this.plugin.settings.replacementPairs.push(newPair);
@@ -1001,5 +1283,173 @@ export class EZReplaceSettingTab extends PluginSettingTab {
 				searchInput.dispatchEvent(new Event('input', { bubbles: true }));
 			}
 		}, 100);
+	}
+}
+
+/**
+ * Modal for browsing and importing regex templates (v1.3.0)
+ */
+class RegexTemplateModal extends Modal {
+	plugin: EZReplacePlugin;
+	settingsTab: EZReplaceSettingTab;
+	private selectedCategory: RegexTemplateCategory | 'all' = 'all';
+
+	constructor(app: App, plugin: EZReplacePlugin, settingsTab: EZReplaceSettingTab) {
+		super(app);
+		this.plugin = plugin;
+		this.settingsTab = settingsTab;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('ez-replace-template-modal');
+
+		// Header
+		contentEl.createEl('h2', { text: 'Regex Templates Library' });
+		contentEl.createEl('p', { 
+			text: 'Browse pre-built regex patterns and add them to your replacement pairs.',
+			cls: 'ez-replace-template-desc'
+		});
+
+		// Category filter
+		const filterContainer = contentEl.createDiv('ez-replace-template-filter');
+		filterContainer.createSpan({ text: 'Category: ' });
+
+		const categorySelect = filterContainer.createEl('select', { cls: 'dropdown' });
+		categorySelect.createEl('option', { text: 'All Categories', value: 'all' });
+		
+		const categories = getTemplateCategories();
+		categories.forEach(cat => {
+			categorySelect.createEl('option', { 
+				text: `${cat.name} (${cat.count})`, 
+				value: cat.category 
+			});
+		});
+
+		categorySelect.value = this.selectedCategory;
+		categorySelect.onchange = () => {
+			this.selectedCategory = categorySelect.value as RegexTemplateCategory | 'all';
+			this.renderTemplates(templatesContainer);
+		};
+
+		// Templates container
+		const templatesContainer = contentEl.createDiv('ez-replace-templates-container');
+		this.renderTemplates(templatesContainer);
+	}
+
+	private renderTemplates(container: HTMLElement) {
+		container.empty();
+
+		const templates = this.selectedCategory === 'all' 
+			? REGEX_TEMPLATES 
+			: getTemplatesByCategory(this.selectedCategory);
+
+		if (templates.length === 0) {
+			container.createEl('p', { 
+				text: 'No templates found in this category.',
+				cls: 'ez-replace-no-templates'
+			});
+			return;
+		}
+
+		// Group by category if showing all
+		if (this.selectedCategory === 'all') {
+			const categories = getTemplateCategories();
+			categories.forEach(cat => {
+				const catTemplates = getTemplatesByCategory(cat.category);
+				if (catTemplates.length > 0) {
+					this.renderCategorySection(container, cat.name, catTemplates);
+				}
+			});
+		} else {
+			templates.forEach(template => {
+				this.renderTemplateCard(container, template);
+			});
+		}
+	}
+
+	private renderCategorySection(container: HTMLElement, categoryName: string, templates: RegexTemplate[]) {
+		const section = container.createDiv('ez-replace-template-category');
+		section.createEl('h3', { text: categoryName, cls: 'ez-replace-category-header' });
+		
+		const grid = section.createDiv('ez-replace-template-grid');
+		templates.forEach(template => {
+			this.renderTemplateCard(grid, template);
+		});
+	}
+
+	private renderTemplateCard(container: HTMLElement, template: RegexTemplate) {
+		const card = container.createDiv('ez-replace-template-card');
+
+		// Template name
+		card.createEl('h4', { text: template.name, cls: 'ez-replace-template-name' });
+
+		// Description
+		card.createEl('p', { text: template.description, cls: 'ez-replace-template-description' });
+
+		// Pattern preview
+		const patternDiv = card.createDiv('ez-replace-template-pattern');
+		patternDiv.createSpan({ text: 'Pattern: ', cls: 'ez-replace-pattern-label' });
+		patternDiv.createEl('code', { text: template.source });
+
+		// Target preview
+		const targetDiv = card.createDiv('ez-replace-template-target');
+		targetDiv.createSpan({ text: 'Replace: ', cls: 'ez-replace-target-label' });
+		targetDiv.createEl('code', { text: template.target });
+
+		// Example
+		const exampleDiv = card.createDiv('ez-replace-template-example');
+		exampleDiv.createSpan({ text: 'Example: ' });
+		exampleDiv.createEl('code', { text: template.example.input });
+		exampleDiv.createSpan({ text: ' -> ' });
+		exampleDiv.createEl('code', { text: template.example.output, cls: 'ez-replace-example-output' });
+
+		// Add button
+		const addBtn = card.createEl('button', { 
+			text: 'Add to Pairs',
+			cls: 'mod-cta ez-replace-add-template-btn'
+		});
+		addBtn.onclick = async () => {
+			await this.importTemplate(template);
+			addBtn.textContent = 'Added!';
+			addBtn.disabled = true;
+			addBtn.removeClass('mod-cta');
+			setTimeout(() => {
+				addBtn.textContent = 'Add to Pairs';
+				addBtn.disabled = false;
+				addBtn.addClass('mod-cta');
+			}, 2000);
+		};
+	}
+
+	private async importTemplate(template: RegexTemplate) {
+		const newPair: ReplacementPair = {
+			id: `pair-${Date.now()}`,
+			source: template.source,
+			target: template.target,
+			enabled: true,
+			description: template.description,
+			caseSensitive: true,
+			wholeWord: false,
+			tags: ['regex-template', template.category],
+			createdAt: Date.now(),
+			usageCount: 0,
+			lastUsedAt: undefined,
+			isRegex: true,
+			regexFlags: template.flags || ''
+		};
+
+		this.plugin.settings.replacementPairs.push(newPair);
+		await this.plugin.saveSettings();
+
+		new Notice(`Template "${template.name}" added to replacement pairs`);
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+		// Refresh settings tab to show new pairs
+		this.settingsTab.display();
 	}
 }
