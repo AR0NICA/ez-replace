@@ -19,6 +19,54 @@ export interface ReplacementPair {
 	createdAt?: number;
 	usageCount?: number;
 	lastUsedAt?: number;
+	// v1.3.0: Regex support
+	isRegex?: boolean;
+	regexFlags?: string;
+	// v1.3.0: Context-aware matching
+	matchContext?: MatchContext;
+}
+
+/**
+ * Context types for context-aware matching (v1.3.0)
+ */
+export type ContextType = 'codeBlock' | 'inlineCode' | 'heading' | 'link' | 'quote' | 'list' | 'normal';
+
+/**
+ * Context matching settings for advanced matching (v1.3.0)
+ */
+export interface MatchContext {
+	include?: ContextType[];
+	exclude?: ContextType[];
+}
+
+/**
+ * Result of regex validation (v1.3.0)
+ */
+export interface RegexValidationResult {
+	valid: boolean;
+	error?: string;
+}
+
+/**
+ * Regex template category (v1.3.0)
+ */
+export type RegexTemplateCategory = 'date' | 'phone' | 'url' | 'case' | 'number' | 'text' | 'custom';
+
+/**
+ * Regex template for pre-built patterns (v1.3.0)
+ */
+export interface RegexTemplate {
+	id: string;
+	name: string;
+	category: RegexTemplateCategory;
+	source: string;
+	target: string;
+	flags?: string;
+	description: string;
+	example: {
+		input: string;
+		output: string;
+	};
 }
 
 /**
