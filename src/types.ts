@@ -24,12 +24,52 @@ export interface ReplacementPair {
 	regexFlags?: string;
 	// v1.3.0: Context-aware matching
 	matchContext?: MatchContext;
+	// v1.4.0: Template support
+	isTemplate?: boolean;
+	templateVariables?: TemplateVariable[];
+	cursorPosition?: number;
+	tabStops?: number[];
 }
 
 /**
  * Context types for context-aware matching (v1.3.0)
  */
 export type ContextType = 'codeBlock' | 'inlineCode' | 'heading' | 'link' | 'quote' | 'list' | 'normal';
+
+/**
+ * Variable types for template system (v1.4.0)
+ */
+export type VariableType = 'date' | 'time' | 'selection' | 'clipboard' | 'custom';
+
+/**
+ * Date format options for date variable (v1.4.0)
+ */
+export type DateFormat = 'YYYY-MM-DD' | 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD' | 'DD-MM-YYYY' | 'Month DD, YYYY' | 'DD Month YYYY';
+
+/**
+ * Time format options for time variable (v1.4.0)
+ */
+export type TimeFormat = '24h' | '12h' | 'HH:MM' | 'HH:MM:SS';
+
+/**
+ * Template variable definition (v1.4.0)
+ */
+export interface TemplateVariable {
+	name: string;
+	type: VariableType;
+	dateFormat?: DateFormat;
+	timeFormat?: TimeFormat;
+	defaultValue?: string;
+}
+
+/**
+ * Result of template validation (v1.4.0)
+ */
+export interface TemplateValidationResult {
+	valid: boolean;
+	error?: string;
+	warnings?: string[];
+}
 
 /**
  * Context matching settings for advanced matching (v1.3.0)
@@ -53,6 +93,11 @@ export interface RegexValidationResult {
 export type RegexTemplateCategory = 'date' | 'phone' | 'url' | 'case' | 'number' | 'text' | 'custom';
 
 /**
+ * Template library category (v1.4.0)
+ */
+export type TemplateCategory = 'meeting-notes' | 'todo' | 'code-block' | 'citation' | 'general';
+
+/**
  * Regex template for pre-built patterns (v1.3.0)
  */
 export interface RegexTemplate {
@@ -63,6 +108,25 @@ export interface RegexTemplate {
 	target: string;
 	flags?: string;
 	description: string;
+	example: {
+		input: string;
+		output: string;
+	};
+}
+
+/**
+ * Template library item (v1.4.0)
+ */
+export interface Template {
+	id: string;
+	name: string;
+	category: TemplateCategory;
+	source: string;
+	target: string;
+	description: string;
+	variables: TemplateVariable[];
+	cursorPosition?: number;
+	tabStops?: number[];
 	example: {
 		input: string;
 		output: string;

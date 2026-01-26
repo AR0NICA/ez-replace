@@ -1,6 +1,6 @@
 {
   "name": "ez-replace",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "An Obsidian plugin to quickly replace selected text with predefined word pairs",
   "main": "main.js",
   "scripts": {

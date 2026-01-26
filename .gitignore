@@ -21,6 +21,7 @@ Thumbs.db
 # Testing
 .obsidian/
 test-vault/
+test-template.js
 
 # Development notes
 TODO.md

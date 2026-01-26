@@ -3,6 +3,8 @@ import { EZReplaceSettings, ReplacementPair, RegexValidationResult, ContextType 
 import { DEFAULT_SETTINGS } from './settings';
 import { EZReplaceSettingTab } from './settingsTab';
 import { ReplacementSuggester } from './suggester';
+import { TemplateProcessor } from './templateProcessor';
+import { TemplateBrowserModal } from './templateBrowser';
 
 // Extend App interface for internal API access
 interface ExtendedApp extends App {
@@ -22,10 +24,14 @@ interface ExtendedApp extends App {
 export default class EZReplacePlugin extends Plugin {
 	settings: EZReplaceSettings;
 	suggester: ReplacementSuggester;
+	templateProcessor: TemplateProcessor;
 
 	async onload() {
 		// Load settings
 		await this.loadSettings();
+
+		// Initialize template processor (v1.4.0)
+		this.templateProcessor = new TemplateProcessor();
 
 		// Initialize suggester
 		this.suggester = new ReplacementSuggester(this);
@@ -38,8 +44,8 @@ export default class EZReplacePlugin extends Plugin {
 		this.addCommand({
 			id: 'replace-selected-text',
 			name: 'Replace selected text',
-			editorCallback: (editor: Editor) => {
-				this.replaceSelectedText(editor);
+			editorCallback: async (editor: Editor) => {
+				await this.replaceSelectedText(editor);
 			}
 		});
 
@@ -49,6 +55,15 @@ export default class EZReplacePlugin extends Plugin {
 			name: 'Open settings',
 			callback: () => {
 				this.openSettings();
+			}
+		});
+
+		// Add command to open template library (v1.4.0)
+		this.addCommand({
+			id: 'open-template-library',
+			name: 'Open template library',
+			callback: () => {
+				new TemplateBrowserModal(this.app, this).open();
 			}
 		});
 	}
@@ -67,7 +82,7 @@ export default class EZReplacePlugin extends Plugin {
 	/**
 	 * Replace selected text with matching replacement pair
 	 */
-	replaceSelectedText(editor: Editor) {
+	async replaceSelectedText(editor: Editor) {
 		const selectedText = editor.getSelection();
 		
 		if (!selectedText) {
@@ -85,17 +100,84 @@ export default class EZReplacePlugin extends Plugin {
 			const { pair, match } = matchResult;
 			let replacement = pair.target;
 			
+			// v1.4.0: Process template if enabled
+			if (pair.isTemplate) {
+				replacement = await this.processTemplate(pair, selectedText);
+			}
 			// Apply capture group substitution for regex pairs (v1.3.0)
-			if (pair.isRegex && match && Array.isArray(match)) {
+			else if (pair.isRegex && match && Array.isArray(match)) {
 				replacement = this.applyCaptureGroups(pair.target, match);
 			}
 			
 			// Replace the selected text with target
 			editor.replaceSelection(replacement);
 			
+			// v1.4.0: Handle cursor positioning for templates
+			if (pair.isTemplate) {
+				this.positionCursorAfterTemplate(editor, replacement);
+			}
+			
 			// Update usage statistics (v1.2.0)
-			this.updateUsageStatistics(pair);
+			await this.updateUsageStatistics(pair);
 		}
+	}
+
+	/**
+	 * Process template with variable substitution (v1.4.0)
+	 */
+	async processTemplate(pair: ReplacementPair, selectedText: string): Promise<string> {
+		const variables = pair.templateVariables || [];
+		
+		// Process template with variables
+		let processed = await this.templateProcessor.process(
+			pair.target,
+			variables,
+			selectedText
+		);
+		
+		// Remove cursor marker
+		processed = this.templateProcessor.removeCursorMarker(processed);
+		
+		// Remove tabstop markers
+		processed = this.templateProcessor.removeTabStopMarkers(processed);
+		
+		return processed;
+	}
+
+	/**
+	 * Position cursor after template insertion (v1.4.0)
+	 */
+	positionCursorAfterTemplate(editor: Editor, processedTemplate: string): void {
+		// Calculate cursor position before removing marker
+		const cursorPos = this.templateProcessor.calculateCursorPosition(processedTemplate);
+		
+		if (cursorPos === -1) {
+			// No cursor marker, position at end
+			return;
+		}
+		
+		// Get the current cursor position (end of replacement)
+		const currentCursor = editor.getCursor();
+		
+		// Calculate the offset from the start of the replacement
+		const startPos = {
+			line: currentCursor.line,
+			ch: currentCursor.ch - processedTemplate.length
+		};
+		
+		// Count newlines before cursor position
+		const textBeforeCursor = processedTemplate.substring(0, cursorPos);
+		const lines = textBeforeCursor.split('\n');
+		const lineOffset = lines.length - 1;
+		const charOffset = lines[lines.length - 1].length;
+		
+		// Set new cursor position
+		const newCursor = {
+			line: startPos.line + lineOffset,
+			ch: lineOffset === 0 ? startPos.ch + charOffset : charOffset
+		};
+		
+		editor.setCursor(newCursor);
 	}
 
 	/**

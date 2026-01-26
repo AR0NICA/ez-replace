@@ -92,8 +92,9 @@ export class ReplacementSuggester extends EditorSuggest<ReplacementPair> {
 		// Get enabled replacement pairs
 		const enabledPairs = settings.replacementPairs.filter(pair => pair.enabled);
 
-		// Separate regex and non-regex pairs
-		const regularPairs = enabledPairs.filter(pair => !pair.isRegex);
+		// Separate by type (v1.4.0: Include templates)
+		const regularPairs = enabledPairs.filter(pair => !pair.isRegex && !pair.isTemplate);
+		const templatePairs = enabledPairs.filter(pair => pair.isTemplate);
 		const regexPairs = enabledPairs.filter(pair => pair.isRegex);
 
 		// Match regular pairs based on selected mode
@@ -104,11 +105,14 @@ export class ReplacementSuggester extends EditorSuggest<ReplacementPair> {
 			regularMatches = this.fuzzyMatch(query, regularPairs);
 		}
 
+		// Match template pairs (v1.4.0)
+		const templateMatches = this.prefixMatch(query, templatePairs);
+
 		// Match regex pairs (v1.3.0)
 		const regexMatches = this.regexPrefixMatch(query, regexPairs);
 
-		// Combine results: regular matches first, then regex matches
-		const allMatches = [...regularMatches, ...regexMatches];
+		// Combine results: regular matches first, then templates, then regex matches
+		const allMatches = [...regularMatches, ...templateMatches, ...regexMatches];
 
 		// Limit results and store for Tab key handler
 		this.currentSuggestions = allMatches.slice(0, settings.suggester.maxSuggestions);
@@ -221,13 +225,27 @@ export class ReplacementSuggester extends EditorSuggest<ReplacementPair> {
 
 		// Target text (result) - emphasized
 		const target = container.createSpan({ cls: 'ez-replace-suggestion-target' });
-		target.setText(pair.target);
+		
+		// v1.4.0: Show template preview if applicable
+		if (pair.isTemplate) {
+			target.setText(this.getTemplatePreview(pair.target));
+		} else {
+			target.setText(pair.target);
+		}
 
 		// v1.3.0: Regex badge
 		if (pair.isRegex) {
 			container.createSpan({ 
 				text: 'Regex', 
 				cls: 'ez-replace-suggestion-regex-badge' 
+			});
+		}
+
+		// v1.4.0: Template badge
+		if (pair.isTemplate) {
+			container.createSpan({ 
+				text: 'Template', 
+				cls: 'ez-replace-suggestion-template-badge' 
 			});
 		}
 
@@ -243,9 +261,21 @@ export class ReplacementSuggester extends EditorSuggest<ReplacementPair> {
 	}
 
 	/**
+	 * Get template preview with variable placeholders (v1.4.0)
+	 */
+	private getTemplatePreview(template: string): string {
+		// Show a simplified preview (first 50 chars, replace newlines)
+		let preview = template.replace(/\n/g, ' ');
+		if (preview.length > 50) {
+			preview = preview.substring(0, 50) + '...';
+		}
+		return preview;
+	}
+
+	/**
 	 * Execute replacement when suggestion is selected
 	 */
-	selectSuggestion(pair: ReplacementPair, evt: MouseEvent | KeyboardEvent): void {
+	async selectSuggestion(pair: ReplacementPair, evt: MouseEvent | KeyboardEvent): Promise<void> {
 		// Check if this is an Enter key event and Enter is disabled
 		const acceptKeys = this.plugin.settings.suggester.acceptKeys;
 		if (evt instanceof KeyboardEvent && evt.key === 'Enter') {
@@ -266,8 +296,12 @@ export class ReplacementSuggester extends EditorSuggest<ReplacementPair> {
 		// Determine replacement text
 		let replacement = pair.target;
 
+		// v1.4.0: Process template if enabled
+		if (pair.isTemplate) {
+			replacement = await this.plugin.processTemplate(pair, query || '');
+		}
 		// v1.3.0: Apply capture groups for regex pairs
-		if (pair.isRegex && query) {
+		else if (pair.isRegex && query) {
 			try {
 				let flags = pair.regexFlags || '';
 				if (pair.caseSensitive === false && !flags.includes('i')) {
@@ -288,14 +322,42 @@ export class ReplacementSuggester extends EditorSuggest<ReplacementPair> {
 		// Replace the text
 		editor.replaceRange(replacement, start, end);
 
-		// Move cursor to end of replacement
-		const newCursorPos = {
-			line: start.line,
-			ch: start.ch + replacement.length
-		};
-		editor.setCursor(newCursorPos);
+		// v1.4.0: Handle cursor positioning for templates
+		if (pair.isTemplate) {
+			// Calculate cursor position before markers were removed
+			const cursorPos = this.plugin.templateProcessor.calculateCursorPosition(replacement);
+			
+			if (cursorPos !== -1) {
+				// Count newlines before cursor position
+				const textBeforeCursor = replacement.substring(0, cursorPos);
+				const lines = textBeforeCursor.split('\n');
+				const lineOffset = lines.length - 1;
+				const charOffset = lines[lines.length - 1].length;
+				
+				// Set cursor position
+				const newCursor = {
+					line: start.line + lineOffset,
+					ch: lineOffset === 0 ? start.ch + charOffset : charOffset
+				};
+				editor.setCursor(newCursor);
+			} else {
+				// No cursor marker, position at end
+				const newCursorPos = {
+					line: start.line,
+					ch: start.ch + replacement.length
+				};
+				editor.setCursor(newCursorPos);
+			}
+		} else {
+			// Move cursor to end of replacement
+			const newCursorPos = {
+				line: start.line,
+				ch: start.ch + replacement.length
+			};
+			editor.setCursor(newCursorPos);
+		}
 
 		// Update usage statistics (v1.2.0)
-		this.plugin.updateUsageStatistics(pair);
+		await this.plugin.updateUsageStatistics(pair);
 	}
 }
